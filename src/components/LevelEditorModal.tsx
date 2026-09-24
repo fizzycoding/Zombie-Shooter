@@ -1,7 +1,19 @@
-import React, { useState } from 'react';
-import { X, Play, Trash2, Plus, Crosshair, ShieldAlert, Flame, Box, RotateCcw } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import {
+  X,
+  Play,
+  RotateCcw,
+  Eraser,
+  Crosshair,
+  Skull,
+  Flame,
+  Box,
+  Minus,
+  Plus
+} from 'lucide-react';
 import { LevelData, WallType, ZombieType } from '../types/game';
 import { soundManager } from '../utils/audio';
+import { BulletIcon } from './BulletIcon';
 
 interface LevelEditorModalProps {
   onPlayCustomLevel: (customLevel: LevelData) => void;
@@ -10,11 +22,9 @@ interface LevelEditorModalProps {
 
 type ToolMode =
   | 'gunman'
-  | 'zombie_regular'
-  | 'zombie_armored'
-  | 'zombie_shielded'
-  | 'wall_vertical'
-  | 'wall_horizontal'
+  | 'zombie'
+  | 'wall_v'
+  | 'wall_h'
   | 'reflector'
   | 'crate'
   | 'tnt'
@@ -24,34 +34,54 @@ export const LevelEditorModal: React.FC<LevelEditorModalProps> = ({
   onPlayCustomLevel,
   onClose
 }) => {
-  const [activeTool, setActiveTool] = useState<ToolMode>('wall_vertical');
+  const [activeTool, setActiveTool] = useState<ToolMode>('wall_v');
+  const [ammoCount, setAmmoCount] = useState<number>(3);
   const [gunman, setGunman] = useState<{ x: number; y: number }>({ x: 120, y: 480 });
   const [zombies, setZombies] = useState<
-    Array<{ x: number; y: number; type: ZombieType; shieldDirection?: 'left' | 'right' }>
+    Array<{ x: number; y: number; type: ZombieType }>
   >([
-    { x: 700, y: 480, type: 'regular' }
+    { x: 800, y: 480, type: 'regular' }
   ]);
   const [walls, setWalls] = useState<
-    Array<{ x: number; y: number; width: number; height: number; type: WallType; angle?: number; health?: number }>
+    Array<{ x: number; y: number; width: number; height: number; type: WallType; angle?: number }>
   >([
     { x: 30, y: 550, width: 900, height: 26, type: 'metal' },
-    { x: 400, y: 160, width: 32, height: 390, type: 'solid' }
+    { x: 460, y: 200, width: 30, height: 350, type: 'solid' }
   ]);
   const [barrels, setBarrels] = useState<Array<{ x: number; y: number }>>([]);
-  const [ammoCount, setAmmoCount] = useState<number>(3);
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
 
-  // Handle click on the mini room preview
-  const handleRoomClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const roomRef = useRef<HTMLDivElement | null>(null);
+
+  // Snap to 20px
+  const snap = (v: number) => Math.round(v / 20) * 20;
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * 960);
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * 600);
+    const rawX = ((e.clientX - rect.left) / rect.width) * 960;
+    const rawY = ((e.clientY - rect.top) / rect.height) * 600;
+    setHoverPos({
+      x: Math.max(34, Math.min(926, snap(rawX))),
+      y: Math.max(34, Math.min(566, snap(rawY)))
+    });
+  };
+
+  const handlePointerLeave = () => {
+    setHoverPos(null);
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const rawX = ((e.clientX - rect.left) / rect.width) * 960;
+    const rawY = ((e.clientY - rect.top) / rect.height) * 600;
+    const x = Math.max(34, Math.min(926, snap(rawX)));
+    const y = Math.max(34, Math.min(566, snap(rawY)));
 
     soundManager.playClick();
 
     if (activeTool === 'erase') {
-      // Erase closest element
-      setZombies(prev => prev.filter(z => Math.hypot(z.x - x, z.y - y) > 40));
-      setBarrels(prev => prev.filter(b => Math.hypot(b.x - x, b.y - y) > 35));
+      setZombies(prev => prev.filter(z => Math.hypot(z.x - x, z.y - y) > 36));
+      setBarrels(prev => prev.filter(b => Math.hypot(b.x - x, b.y - y) > 34));
       setWalls(prev => prev.filter(w => {
         const cx = w.x + w.width / 2;
         const cy = w.y + w.height / 2;
@@ -62,34 +92,37 @@ export const LevelEditorModal: React.FC<LevelEditorModalProps> = ({
 
     if (activeTool === 'gunman') {
       setGunman({ x, y });
-    } else if (activeTool === 'zombie_regular') {
+    } else if (activeTool === 'zombie') {
       setZombies(prev => [...prev, { x, y, type: 'regular' }]);
-    } else if (activeTool === 'zombie_armored') {
-      setZombies(prev => [...prev, { x, y, type: 'armored' }]);
-    } else if (activeTool === 'zombie_shielded') {
-      setZombies(prev => [...prev, { x, y, type: 'shielded', shieldDirection: 'left' }]);
-    } else if (activeTool === 'wall_vertical') {
-      setWalls(prev => [...prev, { x: x - 15, y: Math.max(24, y - 100), width: 30, height: 200, type: 'solid' }]);
-    } else if (activeTool === 'wall_horizontal') {
-      setWalls(prev => [...prev, { x: Math.max(24, x - 100), y: y - 12, width: 200, height: 24, type: 'metal' }]);
+    } else if (activeTool === 'wall_v') {
+      setWalls(prev => [...prev, { x: x - 15, y: Math.max(24, y - 90), width: 30, height: 180, type: 'solid' }]);
+    } else if (activeTool === 'wall_h') {
+      setWalls(prev => [...prev, { x: Math.max(24, x - 90), y: y - 12, width: 180, height: 24, type: 'metal' }]);
     } else if (activeTool === 'reflector') {
       setWalls(prev => [...prev, { x: x - 35, y: y - 35, width: 70, height: 70, type: 'angled_reflector', angle: 45 }]);
     } else if (activeTool === 'crate') {
-      setWalls(prev => [...prev, { x: x - 25, y: y - 35, width: 50, height: 70, type: 'wood_crate', health: 1 }]);
+      setWalls(prev => [...prev, { x: x - 25, y: y - 30, width: 50, height: 60, type: 'wood_crate' }]);
     } else if (activeTool === 'tnt') {
       setBarrels(prev => [...prev, { x: x - 16, y: y - 23 }]);
     }
   };
 
-  const handleStartPlay = () => {
+  const handleClear = () => {
+    soundManager.playClick();
+    setZombies([]);
+    setWalls([{ x: 30, y: 550, width: 900, height: 26, type: 'metal' }]);
+    setBarrels([]);
+  };
+
+  const handlePlay = () => {
     if (zombies.length === 0) {
-      alert('Please place at least one zombie in your room!');
+      soundManager.playRicochet(1);
       return;
     }
     const customLevel: LevelData = {
       id: 999,
-      title: 'Custom Sandbox Chamber',
-      description: 'Player crafted custom room challenge with reflective physics.',
+      title: 'Custom Chamber',
+      description: 'Custom Chamber created in Builder',
       ammo: ammoCount,
       gunman,
       zombies,
@@ -104,219 +137,271 @@ export const LevelEditorModal: React.FC<LevelEditorModalProps> = ({
     onClose();
   };
 
-  const handleReset = () => {
-    setGunman({ x: 120, y: 480 });
-    setZombies([{ x: 700, y: 480, type: 'regular' }]);
-    setWalls([
-      { x: 30, y: 550, width: 900, height: 26, type: 'metal' },
-      { x: 400, y: 160, width: 32, height: 390, type: 'solid' }
-    ]);
-    setBarrels([]);
-  };
-
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-4xl w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-          <div>
-            <h2 className="text-xl font-black text-slate-100 font-display tracking-tight">
-              LEVEL BUILDER & SANDBOX
-            </h2>
-            <p className="text-xs text-slate-400">Design your own packed room and test ricochet trick shots</p>
-          </div>
+    <div className="fixed inset-0 z-50 bg-slate-950 text-slate-100 flex flex-col items-center justify-center select-none font-sans overflow-hidden">
+      {/* 1. Sleek Floating Top Control Bar */}
+      <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between pointer-events-none">
+        {/* Left: Exit Button */}
+        <button
+          onClick={() => {
+            soundManager.playClick();
+            onClose();
+          }}
+          className="pointer-events-auto w-11 h-11 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 shadow-2xl backdrop-blur-md flex items-center justify-center transition-all cursor-pointer group active:scale-95 text-slate-300 hover:text-white"
+          title="Exit Builder"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Center: Minimal Floating Tool Dock */}
+        <div className="pointer-events-auto flex items-center gap-1 p-1.5 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-2xl backdrop-blur-md">
           <button
             onClick={() => {
               soundManager.playClick();
-              onClose();
+              setActiveTool('gunman');
             }}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-2 mb-3 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
-          <span className="text-xs font-semibold text-slate-400 mr-1">Tools:</span>
-          
-          <button
-            onClick={() => setActiveTool('gunman')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-colors ${
+            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTool === 'gunman'
-                ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                ? 'bg-amber-500 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
+            title="Hunter Spawn"
           >
-            <Crosshair className="w-3.5 h-3.5 text-amber-400" />
-            <span>Gunman</span>
+            <Crosshair className="w-4 h-4" />
+            <span className="hidden sm:inline">Hunter</span>
           </button>
 
           <button
-            onClick={() => setActiveTool('zombie_regular')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-colors ${
-              activeTool === 'zombie_regular'
-                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+            onClick={() => {
+              soundManager.playClick();
+              setActiveTool('zombie');
+            }}
+            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              activeTool === 'zombie'
+                ? 'bg-emerald-500 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
+            title="Zombie"
           >
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
-            <span>Zombie</span>
+            <Skull className="w-4 h-4" />
+            <span className="hidden sm:inline">Zombie</span>
           </button>
 
           <button
-            onClick={() => setActiveTool('zombie_shielded')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-colors ${
-              activeTool === 'zombie_shielded'
-                ? 'bg-blue-500/20 border-blue-500 text-blue-300'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+            onClick={() => {
+              soundManager.playClick();
+              setActiveTool('wall_v');
+            }}
+            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              activeTool === 'wall_v'
+                ? 'bg-slate-200 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
+            title="Vertical Wall"
           >
-            <ShieldAlert className="w-3.5 h-3.5 text-blue-400" />
-            <span>Shield Zombie</span>
+            <div className="w-1.5 h-4 bg-current rounded-xs" />
+            <span className="hidden sm:inline">Wall</span>
           </button>
 
           <button
-            onClick={() => setActiveTool('wall_vertical')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-colors ${
-              activeTool === 'wall_vertical'
-                ? 'bg-slate-700 border-slate-500 text-slate-100'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+            onClick={() => {
+              soundManager.playClick();
+              setActiveTool('wall_h');
+            }}
+            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              activeTool === 'wall_h'
+                ? 'bg-slate-200 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
+            title="Platform"
           >
-            <div className="w-1.5 h-3.5 bg-slate-400 rounded-sm" />
-            <span>Vertical Wall</span>
+            <div className="w-4 h-1.5 bg-current rounded-xs" />
+            <span className="hidden sm:inline">Platform</span>
           </button>
 
           <button
-            onClick={() => setActiveTool('wall_horizontal')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-colors ${
-              activeTool === 'wall_horizontal'
-                ? 'bg-slate-700 border-slate-500 text-slate-100'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <div className="w-3.5 h-1.5 bg-slate-400 rounded-sm" />
-            <span>Platform</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTool('reflector')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-colors ${
+            onClick={() => {
+              soundManager.playClick();
+              setActiveTool('reflector');
+            }}
+            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTool === 'reflector'
-                ? 'bg-sky-500/20 border-sky-500 text-sky-300'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                ? 'bg-cyan-400 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
+            title="45° Prism Reflector"
           >
-            <span className="text-sky-400 font-bold">◢</span>
-            <span>45° Reflector</span>
+            <span className="font-bold text-sm leading-none">◢</span>
+            <span className="hidden sm:inline">Mirror</span>
           </button>
 
           <button
-            onClick={() => setActiveTool('crate')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-colors ${
-              activeTool === 'crate'
-                ? 'bg-amber-800/30 border-amber-600 text-amber-200'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Box className="w-3.5 h-3.5 text-amber-600" />
-            <span>Wood Crate</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTool('tnt')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-colors ${
+            onClick={() => {
+              soundManager.playClick();
+              setActiveTool('tnt');
+            }}
+            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTool === 'tnt'
-                ? 'bg-red-500/20 border-red-500 text-red-300'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                ? 'bg-red-500 text-white shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
+            title="Explosive TNT"
           >
-            <Flame className="w-3.5 h-3.5 text-red-400" />
-            <span>TNT Barrel</span>
+            <Flame className="w-4 h-4" />
+            <span className="hidden sm:inline">TNT</span>
           </button>
 
           <button
-            onClick={() => setActiveTool('erase')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-colors ml-auto ${
-              activeTool === 'erase'
-                ? 'bg-red-600/30 border-red-500 text-red-300'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+            onClick={() => {
+              soundManager.playClick();
+              setActiveTool('crate');
+            }}
+            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              activeTool === 'crate'
+                ? 'bg-amber-700 text-white shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
+            title="Wooden Crate"
           >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Erase</span>
+            <Box className="w-4 h-4" />
+            <span className="hidden sm:inline">Crate</span>
+          </button>
+
+          <div className="w-px h-5 bg-slate-700 mx-1" />
+
+          {/* Erase */}
+          <button
+            onClick={() => {
+              soundManager.playClick();
+              setActiveTool('erase');
+            }}
+            className={`px-2.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+              activeTool === 'erase'
+                ? 'bg-rose-500 text-white shadow-md'
+                : 'text-slate-400 hover:text-rose-400 hover:bg-slate-800'
+            }`}
+            title="Eraser (Click to delete item)"
+          >
+            <Eraser className="w-4 h-4" />
+          </button>
+
+          {/* Clear */}
+          <button
+            onClick={handleClear}
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Reset Arena"
+          >
+            <RotateCcw className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Interactive Editor Canvas Room */}
-        <div
-          onClick={handleRoomClick}
-          className="relative w-full aspect-[16/10] bg-slate-950 border-2 border-slate-800 rounded-xl overflow-hidden cursor-pointer select-none mb-4"
-        >
-          {/* Room Boundaries Notice */}
-          <div className="absolute inset-1 border border-amber-500/30 pointer-events-none" />
+        {/* Right: Ammo Stepper & Play Button */}
+        <div className="pointer-events-auto flex items-center gap-3">
+          {/* Ammo Selector */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-2xl backdrop-blur-md">
+            <button
+              onClick={() => {
+                soundManager.playClick();
+                setAmmoCount(prev => Math.max(1, prev - 1));
+              }}
+              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              title="Less Ammo"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
 
-          {/* Render Gunman */}
-          <div
-            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none"
-            style={{ left: `${(gunman.x / 960) * 100}%`, top: `${(gunman.y / 600) * 100}%` }}
-          >
-            <div className="w-6 h-10 bg-amber-500 rounded-sm flex items-center justify-center text-[9px] font-bold text-slate-950">
-              GUN
+            <div className="flex items-center gap-1 px-1">
+              {Array.from({ length: ammoCount }).map((_, i) => (
+                <BulletIcon key={i} active size="sm" />
+              ))}
             </div>
+
+            <button
+              onClick={() => {
+                soundManager.playClick();
+                setAmmoCount(prev => Math.min(8, prev + 1));
+              }}
+              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              title="More Ammo"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          {/* Render Zombies */}
-          {zombies.map((z, idx) => (
-            <div
-              key={idx}
-              className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none"
-              style={{ left: `${(z.x / 960) * 100}%`, top: `${(z.y / 600) * 100}%` }}
-            >
-              <div
-                className={`w-6 h-10 rounded-sm flex items-center justify-center text-[8px] font-bold text-white ${
-                  z.type === 'shielded'
-                    ? 'bg-blue-600'
-                    : z.type === 'armored'
-                    ? 'bg-slate-600'
-                    : 'bg-emerald-600'
-                }`}
-              >
-                {z.type === 'shielded' ? 'SHD' : 'ZOM'}
-              </div>
-            </div>
-          ))}
+          {/* Test / Play Button */}
+          <button
+            onClick={handlePlay}
+            disabled={zombies.length === 0}
+            className={`px-5 py-2.5 rounded-2xl font-black text-sm flex items-center gap-2 transition-all cursor-pointer shadow-2xl ${
+              zombies.length > 0
+                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 active:scale-95 shadow-amber-500/30'
+                : 'bg-slate-800 text-slate-600 border border-slate-700/50 cursor-not-allowed'
+            }`}
+            title={zombies.length === 0 ? 'Place a zombie to play' : 'Play Level'}
+          >
+            <Play className="w-4 h-4 fill-current" />
+            <span>PLAY</span>
+          </button>
+        </div>
+      </div>
 
-          {/* Render Barrels */}
-          {barrels.map((b, idx) => (
-            <div
-              key={idx}
-              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none bg-red-600 border border-red-400 rounded-xs flex items-center justify-center text-[7px] font-bold text-white"
-              style={{
-                left: `${(b.x / 960) * 100}%`,
-                top: `${(b.y / 600) * 100}%`,
-                width: `${(32 / 960) * 100}%`,
-                height: `${(46 / 600) * 100}%`
-              }}
-            >
-              TNT
-            </div>
-          ))}
+      {/* 2. Full-Screen Interactive Chamber Canvas */}
+      <div className="w-full h-full p-6 sm:p-10 flex items-center justify-center">
+        <div
+          ref={roomRef}
+          onClick={handleClick}
+          onPointerMove={handlePointerMove}
+          onPointerLeave={handlePointerLeave}
+          className={`relative w-full max-w-[calc(90vh*1.6)] aspect-[16/10] bg-slate-950 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl select-none ${
+            activeTool === 'erase' ? 'cursor-not-allowed' : 'cursor-crosshair'
+          }`}
+        >
+          {/* Subtle Grid */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-20"
+            style={{
+              backgroundImage: `
+                linear-gradient(to right, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.08) 1px, transparent 1px)
+              `,
+              backgroundSize: '20px 20px'
+            }}
+          />
 
-          {/* Render Walls */}
+          {/* Outer Room Hazard Caution Border (24px logical thickness) */}
+          <div
+            className="absolute pointer-events-none border border-amber-500/40"
+            style={{
+              top: `${(24 / 600) * 100}%`,
+              left: `${(24 / 960) * 100}%`,
+              right: `${(24 / 960) * 100}%`,
+              bottom: `${(24 / 600) * 100}%`
+            }}
+          />
+
+          {/* Perimeter Solid Wall Edge Accents */}
+          <div className="absolute top-0 left-0 right-0 h-[4%] bg-slate-900 border-b border-slate-800 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-[4%] bg-slate-900 border-t border-slate-800 pointer-events-none" />
+          <div className="absolute top-0 bottom-0 left-0 w-[2.5%] bg-slate-900 border-r border-slate-800 pointer-events-none" />
+          <div className="absolute top-0 bottom-0 right-0 w-[2.5%] bg-slate-900 border-l border-slate-800 pointer-events-none" />
+
+          {/* Placed Walls */}
           {walls.map((w, idx) => {
             const isAngled = w.type === 'angled_reflector';
             const isCrate = w.type === 'wood_crate';
+            const isPlatform = w.type === 'metal';
+
             return (
               <div
                 key={idx}
-                className={`absolute pointer-events-none ${
+                className={`absolute pointer-events-none transition-all ${
                   isAngled
-                    ? 'bg-sky-500/80 border border-sky-300'
+                    ? 'bg-cyan-500/90 border-2 border-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
                     : isCrate
-                    ? 'bg-amber-800 border border-amber-600'
-                    : 'bg-slate-700 border border-slate-500'
+                    ? 'bg-amber-900/90 border border-amber-600 shadow-md'
+                    : isPlatform
+                    ? 'bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 border border-slate-500 shadow-md'
+                    : 'bg-gradient-to-b from-slate-800 via-slate-700 to-slate-800 border border-slate-600 shadow-lg'
                 }`}
                 style={{
                   left: `${(w.x / 960) * 100}%`,
@@ -325,58 +410,104 @@ export const LevelEditorModal: React.FC<LevelEditorModalProps> = ({
                   height: `${(w.height / 600) * 100}%`,
                   clipPath: isAngled ? 'polygon(0 100%, 100% 0, 100% 100%)' : undefined
                 }}
-              />
+              >
+                {isAngled && (
+                  <div className="absolute bottom-1 right-1 text-[8px] font-mono text-cyan-200 font-bold">
+                    45°
+                  </div>
+                )}
+              </div>
             );
           })}
 
-          <div className="absolute top-2 left-2 text-[10px] text-slate-500 pointer-events-none">
-            Click inside room to place selected element
-          </div>
-        </div>
-
-        {/* Footer controls */}
-        <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-slate-400 flex items-center gap-2">
-              <span>Ammo:</span>
-              <input
-                type="number"
-                min="1"
-                max="8"
-                value={ammoCount}
-                onChange={(e) => setAmmoCount(Math.max(1, Math.min(8, Number(e.target.value))))}
-                className="w-14 px-2 py-1 bg-slate-950 border border-slate-800 rounded text-center text-xs font-mono font-bold text-amber-400"
-              />
-            </label>
-
-            <button
-              onClick={handleReset}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 flex items-center gap-1.5 transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                soundManager.playClick();
-                onClose();
+          {/* Placed TNT Barrels */}
+          {barrels.map((b, idx) => (
+            <div
+              key={idx}
+              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center justify-center"
+              style={{
+                left: `${(b.x / 960) * 100}%`,
+                top: `${(b.y / 600) * 100}%`,
+                width: `${(32 / 960) * 100}%`,
+                height: `${(46 / 600) * 100}%`
               }}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
             >
-              Cancel
-            </button>
+              <div className="w-full h-full rounded-sm bg-gradient-to-r from-red-700 via-red-500 to-red-800 border border-red-300 shadow-[0_0_12px_rgba(239,68,68,0.5)] flex items-center justify-center">
+                <span className="text-[7px] font-black text-amber-200 tracking-tighter">TNT</span>
+              </div>
+            </div>
+          ))}
 
-            <button
-              onClick={handleStartPlay}
-              className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-lg shadow-amber-500/20"
+          {/* Placed Zombies */}
+          {zombies.map((z, idx) => (
+            <div
+              key={idx}
+              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center"
+              style={{
+                left: `${(z.x / 960) * 100}%`,
+                top: `${(z.y / 600) * 100}%`
+              }}
             >
-              <Play className="w-4 h-4 fill-slate-950" />
-              <span>Play Custom Level</span>
-            </button>
+              <div className="w-4 h-4 rounded-full bg-emerald-600 border border-emerald-400 relative mb-0.5 shadow-md">
+                <div className="w-1 h-1 bg-red-400 rounded-full absolute top-1 right-0.5 shadow-[0_0_4px_#f87171]" />
+              </div>
+              <div className="w-5 h-8 rounded-sm bg-emerald-800 text-emerald-100 border border-emerald-600 flex items-center justify-center text-[7px] font-bold">
+                ZOM
+              </div>
+            </div>
+          ))}
+
+          {/* Placed Gunman Hunter */}
+          <div
+            className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]"
+            style={{
+              left: `${(gunman.x / 960) * 100}%`,
+              top: `${(gunman.y / 600) * 100}%`
+            }}
+          >
+            <div className="w-4 h-4 rounded-full bg-slate-700 border border-amber-400 relative mb-0.5">
+              <div className="w-2 h-1 bg-sky-400 rounded-full absolute top-1 right-0" />
+            </div>
+            <div className="w-6 h-8 rounded-sm bg-slate-800 border-2 border-amber-500 flex items-center justify-center text-[7px] font-black text-amber-300">
+              HUNTER
+            </div>
           </div>
+
+          {/* Ghost Cursor Outline */}
+          {hoverPos && (
+            <div
+              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-40 z-20 border-2 border-dashed"
+              style={{
+                left: `${(hoverPos.x / 960) * 100}%`,
+                top: `${(hoverPos.y / 600) * 100}%`,
+                borderColor: activeTool === 'erase' ? '#ef4444' : '#f59e0b',
+                width:
+                  activeTool === 'wall_v'
+                    ? `${(30 / 960) * 100}%`
+                    : activeTool === 'wall_h'
+                    ? `${(180 / 960) * 100}%`
+                    : activeTool === 'reflector'
+                    ? `${(70 / 960) * 100}%`
+                    : activeTool === 'crate'
+                    ? `${(50 / 960) * 100}%`
+                    : activeTool === 'tnt'
+                    ? `${(32 / 960) * 100}%`
+                    : `${(36 / 960) * 100}%`,
+                height:
+                  activeTool === 'wall_v'
+                    ? `${(180 / 600) * 100}%`
+                    : activeTool === 'wall_h'
+                    ? `${(24 / 600) * 100}%`
+                    : activeTool === 'reflector'
+                    ? `${(70 / 600) * 100}%`
+                    : activeTool === 'crate'
+                    ? `${(60 / 600) * 100}%`
+                    : activeTool === 'tnt'
+                    ? `${(46 / 600) * 100}%`
+                    : `${(48 / 600) * 100}%`
+              }}
+            />
+          )}
         </div>
       </div>
     </div>

@@ -33,6 +33,7 @@ interface GameCanvasProps {
   onOutOfAmmo: () => void;
   aimAssist: boolean;
   isPaused: boolean;
+  restartKey?: number;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -42,9 +43,42 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   onZombiesCleared,
   onOutOfAmmo,
   aimAssist,
-  isPaused
+  isPaused,
+  restartKey
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Resize observer to keep canvas dimensions matching viewport responsively
+  useEffect(() => {
+    const updateSize = () => {
+      const container = containerRef.current;
+      const canvas = canvasRef.current;
+      if (!container || !canvas) return;
+
+      const width = container.clientWidth || window.innerWidth;
+      const height = container.clientHeight || window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+    };
+
+    updateSize();
+    window.addEventListener('resize', updateSize);
+
+    const observer = new ResizeObserver(() => {
+      updateSize();
+    });
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateSize);
+      observer.disconnect();
+    };
+  }, []);
 
   // Game entities state refs (to avoid re-renders on 60fps loop)
   const gunAngleRef = useRef<number>(-0.4);
@@ -64,6 +98,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const bulletsFiredCountRef = useRef<number>(0);
   const totalBouncesCountRef = useRef<number>(0);
   const levelCompletedTriggeredRef = useRef<boolean>(false);
+  const lastShotTimeRef = useRef<number>(0);
 
   // Initialize level
   const initLevel = useCallback(() => {
@@ -110,31 +145,35 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     bulletsFiredCountRef.current = 0;
     totalBouncesCountRef.current = 0;
     levelCompletedTriggeredRef.current = false;
+    lastShotTimeRef.current = 0;
   }, [level]);
 
   useEffect(() => {
     initLevel();
-  }, [initLevel]);
+  }, [initLevel, restartKey]);
 
   // Handle firing a bullet
   const handleFire = useCallback(() => {
     if (isPaused || ammoLeft <= 0 || levelCompletedTriggeredRef.current) return;
 
-    // Check if there are active bullets already
-    const activeBullets = bulletsRef.current.filter(b => b.active);
-    if (activeBullets.length > 0) {
-      // Allow max 2 simultaneous bullets for fast play
-      if (activeBullets.length >= 2) return;
+    // 0.5 sec cooldown between consecutive bullets (player can shoot all available ammo)
+    const now = performance.now();
+    if (now - lastShotTimeRef.current < 500) {
+      return;
     }
+    lastShotTimeRef.current = now;
 
     const gunmanPos = level.gunman;
     const angle = gunAngleRef.current;
     const speed = 760; // Pixels per second
+    const facingLeft = Math.cos(angle) < 0;
 
-    // Gun muzzle position offset
+    // Gun muzzle position offset matching player pivot (gx ± 2, gy - 36)
     const muzzleDist = 42;
-    const muzzleX = gunmanPos.x + Math.cos(angle) * muzzleDist;
-    const muzzleY = gunmanPos.y - 14 + Math.sin(angle) * muzzleDist;
+    const pivotX = facingLeft ? gunmanPos.x - 2 : gunmanPos.x + 2;
+    const pivotY = gunmanPos.y - 36;
+    const muzzleX = pivotX + Math.cos(angle) * muzzleDist;
+    const muzzleY = pivotY + Math.sin(angle) * muzzleDist;
 
     const newBullet: Bullet = {
       id: `bullet_${Date.now()}_${Math.random()}`,
@@ -641,6 +680,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           aliveZombies > 0 &&
           ammoLeft <= 0 &&
           bulletsRef.current.length === 0 &&
+          bulletsFiredCountRef.current > 0 &&
           !levelCompletedTriggeredRef.current
         ) {
           // No more ammo and no active bullets in flight
@@ -652,7 +692,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
 
       // --- RENDERING ---
+      // Reset transform and clear canvas buffer
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
       ctx.save();
+
+      // Dynamic responsive scaling from logical 960x600 coordinates to actual viewport size
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const scaleX = (canvas.width / dpr) / ROOM_WIDTH;
+      const scaleY = (canvas.height / dpr) / ROOM_HEIGHT;
+      ctx.setTransform(dpr * scaleX, 0, 0, dpr * scaleY, 0, 0);
 
       // Screen shake translation
       if (screenShakeRef.current > 0) {
@@ -937,9 +987,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const gx = level.gunman.x;
       const gy = level.gunman.y;
       const gunAngle = gunAngleRef.current;
+      const facingLeft = Math.cos(gunAngle) < 0;
 
       ctx.save();
       ctx.translate(gx, gy);
+      if (facingLeft) {
+        ctx.scale(-1, 1);
+      }
 
       // Legs / tactical pants
       ctx.fillStyle = '#1e293b';
@@ -969,7 +1023,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       // Gun Pivot Arm & Laser Gun
       ctx.translate(2, -36);
-      ctx.rotate(gunAngle);
+      const localGunAngle = facingLeft ? Math.atan2(Math.sin(gunAngle), -Math.cos(gunAngle)) : gunAngle;
+      ctx.rotate(localGunAngle);
 
       // Pistol / Sniper Body
       ctx.fillStyle = '#0f172a';
@@ -984,8 +1039,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       // 8. Render Aim Trajectory / Laser Pointer (if active or aimed)
       if (aimAssist && ammoLeft > 0 && !isPaused && !levelCompletedTriggeredRef.current) {
         const muzzleDist = 42;
-        const muzzleX = gx + Math.cos(gunAngle) * muzzleDist;
-        const muzzleY = gy - 14 + Math.sin(gunAngle) * muzzleDist;
+        const pivotX = facingLeft ? gx - 2 : gx + 2;
+        const pivotY = gy - 36;
+        const muzzleX = pivotX + Math.cos(gunAngle) * muzzleDist;
+        const muzzleY = pivotY + Math.sin(gunAngle) * muzzleDist;
 
         const trajectory = calculateTrajectory(
           { x: muzzleX, y: muzzleY },
@@ -1098,6 +1155,39 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         ctx.restore();
       }
 
+      // 11. Render Custom In-Game Crosshair Reticle at mouse position
+      if (!isPaused && ammoLeft > 0 && !levelCompletedTriggeredRef.current && isPointerActiveRef.current) {
+        const mx = mousePosRef.current.x;
+        const my = mousePosRef.current.y;
+
+        ctx.save();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1.75;
+        ctx.shadowColor = 'rgba(245, 158, 11, 0.6)';
+        ctx.shadowBlur = 6;
+
+        // Circular sight reticle
+        ctx.beginPath();
+        ctx.arc(mx, my, 10, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Center aiming pip
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.arc(mx, my, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 4 crosshair tick marks
+        ctx.beginPath();
+        ctx.moveTo(mx - 16, my); ctx.lineTo(mx - 6, my);
+        ctx.moveTo(mx + 6, my);  ctx.lineTo(mx + 16, my);
+        ctx.moveTo(mx, my - 16); ctx.lineTo(mx, my - 6);
+        ctx.moveTo(mx, my + 6);  ctx.lineTo(mx, my + 16);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
       ctx.restore();
 
       animationFrameId = requestAnimationFrame(loop);
@@ -1133,9 +1223,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     mousePosRef.current = { x: clientX, y: clientY };
     isPointerActiveRef.current = true;
 
-    // Calculate angle from gunman to cursor
+    // Calculate angle from gunman pivot to cursor
     const gx = level.gunman.x;
-    const gy = level.gunman.y - 14;
+    const gy = level.gunman.y - 36;
     const dx = clientX - gx;
     const dy = clientY - gy;
 
@@ -1148,14 +1238,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   return (
-    <div className="relative w-full aspect-[16/10] max-h-[75vh] select-none rounded-xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950 flex items-center justify-center">
+    <div ref={containerRef} className="absolute inset-0 w-full h-full select-none overflow-hidden bg-slate-950 flex items-center justify-center">
       <canvas
         ref={canvasRef}
-        width={ROOM_WIDTH}
-        height={ROOM_HEIGHT}
         onPointerMove={handlePointerMove}
+        onPointerEnter={handlePointerMove}
         onPointerDown={handlePointerDown}
-        className="w-full h-full object-contain cursor-crosshair touch-none"
+        className="w-full h-full block cursor-crosshair touch-none"
       />
     </div>
   );

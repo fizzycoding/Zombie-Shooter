@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Star, Lock, Play } from 'lucide-react';
+import { X, Star, Unlock } from 'lucide-react';
 import { LevelData } from '../types/game';
 import { soundManager } from '../utils/audio';
 
@@ -23,60 +23,48 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-2xl w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-5">
-          <div>
+          <div className="flex items-center gap-3">
             <h2 className="text-xl font-black text-slate-100 font-display tracking-tight">
-              SELECT MISSION
+              SELECT LEVEL
             </h2>
-            <p className="text-xs text-slate-400">Choose a packed chamber puzzle</p>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
+              <Unlock className="w-3 h-3" />
+              All Levels Unlocked
+            </span>
           </div>
           <button
             onClick={() => {
               soundManager.playClick();
               onClose();
             }}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Levels Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 overflow-y-auto pr-1">
+        {/* Levels Grid - All Levels Unlocked */}
+        <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 overflow-y-auto pr-1">
           {levels.map((lvl) => {
             const stars = starsEarned[lvl.id] || 0;
-            const isUnlocked = lvl.id === 1 || starsEarned[lvl.id - 1] !== undefined || stars > 0;
             const isCurrent = lvl.id === currentLevelId;
 
             return (
               <button
                 key={lvl.id}
-                disabled={!isUnlocked}
                 onClick={() => {
                   soundManager.playClick();
                   onSelectLevel(lvl.id);
                   onClose();
                 }}
-                className={`p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between h-28 ${
+                className={`p-3 rounded-2xl border text-center transition-all relative flex flex-col items-center justify-between h-24 cursor-pointer active:scale-95 ${
                   isCurrent
-                    ? 'bg-amber-500/10 border-amber-500/50 text-slate-100 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
-                    : isUnlocked
-                    ? 'bg-slate-950/60 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40 text-slate-200'
-                    : 'bg-slate-950/20 border-slate-900 opacity-40 cursor-not-allowed text-slate-500'
+                    ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)] ring-2 ring-amber-500/50'
+                    : 'bg-slate-950/70 border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/60 text-slate-100'
                 }`}
               >
-                <div className="flex items-start justify-between">
-                  <span className="text-xs font-mono font-bold text-slate-400">
-                    STAGE {lvl.id}
-                  </span>
-                  {isUnlocked ? (
-                    <Play className="w-3.5 h-3.5 text-amber-400 opacity-70" />
-                  ) : (
-                    <Lock className="w-3.5 h-3.5 text-slate-600" />
-                  )}
-                </div>
-
-                <div className="text-xs font-semibold line-clamp-1 text-slate-200">
-                  {lvl.title.replace(/^Level \d+:\s*/, '')}
+                <div className="text-2xl font-black font-mono tracking-tight my-auto">
+                  {lvl.id}
                 </div>
 
                 {/* Stars bar */}
@@ -84,7 +72,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
                   {[1, 2, 3].map((s) => (
                     <Star
                       key={s}
-                      className={`w-3.5 h-3.5 ${
+                      className={`w-3 h-3 ${
                         s <= stars
                           ? 'fill-amber-400 text-amber-400'
                           : 'fill-slate-800 text-slate-700'

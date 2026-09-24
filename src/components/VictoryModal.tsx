@@ -11,6 +11,7 @@ interface VictoryModalProps {
   onNextLevel: () => void;
   onReplay: () => void;
   onOpenLevelSelect: () => void;
+  onHome: () => void;
 }
 
 export const VictoryModal: React.FC<VictoryModalProps> = ({
@@ -21,7 +22,8 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   hasNextLevel,
   onNextLevel,
   onReplay,
-  onOpenLevelSelect
+  onOpenLevelSelect,
+  onHome
 }) => {
   useEffect(() => {
     soundManager.playVictory();
@@ -37,7 +39,9 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
         <h2 className="text-2xl font-black text-slate-100 font-display tracking-tight mb-1">
           CHAMBER CLEARED!
         </h2>
-        <p className="text-sm text-slate-400 mb-6">{levelTitle}</p>
+        <p className="text-sm text-amber-400 font-bold mb-6">
+          {/^\d+$/.test(levelTitle) ? `Level ${levelTitle}` : levelTitle}
+        </p>
 
         {/* Stars */}
         <div className="flex items-center justify-center gap-2 mb-6">
@@ -105,12 +109,22 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
                 soundManager.playClick();
                 onOpenLevelSelect();
               }}
-              className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-700/80"
+              className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-700/80 cursor-pointer"
             >
-              <Grid className="w-3.5 h-3.5" />
-              <span>Select Level</span>
+              <Grid className="w-3.5 h-3.5 text-amber-400" />
+              <span>Levels</span>
             </button>
           </div>
+
+          <button
+            onClick={() => {
+              soundManager.playClick();
+              onHome();
+            }}
+            className="w-full py-2 px-3 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+          >
+            Home
+          </button>
         </div>
       </div>
     </div>
