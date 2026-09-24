@@ -1208,6 +1208,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     triggerExplosion
   ]);
 
+  const isDraggingRef = useRef<boolean>(false);
+
   // Pointer move & aim angle calculation
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -1233,8 +1235,32 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    isDraggingRef.current = true;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
     handlePointerMove(e);
-    handleFire();
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (isDraggingRef.current) {
+      handlePointerMove(e);
+      try {
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+      } catch {
+        // ignore
+      }
+      isDraggingRef.current = false;
+      handleFire();
+    }
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    isDraggingRef.current = false;
   };
 
   return (
@@ -1244,7 +1270,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         onPointerMove={handlePointerMove}
         onPointerEnter={handlePointerMove}
         onPointerDown={handlePointerDown}
-        className="w-full h-full block cursor-crosshair touch-none"
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        className="w-full h-full block cursor-crosshair touch-none select-none"
       />
     </div>
   );

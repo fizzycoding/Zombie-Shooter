@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Play, Grid, Wrench, HelpCircle, Volume2, VolumeX, Star, Target, Shield, Flame } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 
@@ -86,9 +86,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       const dt = Math.min((time - lastT) / 1000, 0.05);
       lastT = time;
 
-      // Dark atmospheric gradient
-      ctx.fillStyle = '#050914';
-      ctx.fillRect(0, 0, width, height);
+      // Clear canvas buffer for background image visibility
+      ctx.clearRect(0, 0, width, height);
 
       // Subtle tactical grid
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
@@ -167,16 +166,39 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     };
   }, []);
 
+  const [heroScale, setHeroScale] = useState(1);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerHeight < 480) {
+        setHeroScale(Math.max(0.65, window.innerHeight / 480));
+      } else {
+        setHeroScale(1);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
-    <div className="relative w-full min-h-screen select-none flex flex-col justify-between p-3 sm:p-5 md:p-8 font-sans overflow-x-hidden">
-      {/* Background Canvas */}
+    <div className="relative w-full min-h-screen select-none flex flex-col justify-between p-3 sm:p-6 md:p-8 font-sans overflow-x-hidden bg-slate-950">
+      {/* Background Image */}
+      <img
+        src="/zombie-bg-home.webp"
+        alt="Zombie Home Background"
+        className="absolute inset-0 w-full h-full object-cover opacity-75 pointer-events-none"
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-950/60 via-slate-950/20 to-slate-950/80 pointer-events-none" />
+
+      {/* Background Canvas Particles */}
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
 
       {/* Top Header / Corner Status */}
       <div className="relative z-10 flex items-center justify-between w-full max-w-5xl mx-auto gap-2">
         {/* Star Badge */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-800 backdrop-blur-md shadow-lg">
-          <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-amber-400 text-amber-400" />
+        <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-800 backdrop-blur-md shadow-lg">
+          <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-amber-400 text-amber-400" />
           <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-200 tabular-nums">
             {totalStars} / {maxStars} Stars
           </span>
@@ -209,58 +231,65 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       </div>
 
       {/* Center Game Title Logo & Actions */}
-      <div className="relative z-10 flex flex-col items-center justify-center text-center my-auto py-2 sm:py-4 max-w-md mx-auto w-full">
-        {/* Thematic Crosshair Badge */}
-        <div className="relative mb-2 sm:mb-3">
-          <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-500/20 to-red-500/10 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-            <Target className="w-5 h-5 sm:w-7 sm:h-7 animate-pulse" />
-          </div>
-          <div className="absolute -bottom-1.5 -right-1.5 px-1 py-0.5 rounded bg-red-600 text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-white shadow-md border border-red-400">
-            8-Bounce
-          </div>
-        </div>
-
+      <div
+        className="relative z-10 flex flex-col items-center justify-center text-center my-auto py-2 sm:py-4 max-w-md mx-auto w-full transition-transform duration-100"
+        style={{
+          transform: `scale(${heroScale})`,
+          transformOrigin: 'center center'
+        }}
+      >
         {/* Game Title */}
-        <h1 className="whitespace-nowrap text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-tight font-display text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-100 to-slate-400 drop-shadow-[0_4px_16px_rgba(245,158,11,0.2)] mb-3 sm:mb-5 px-2">
+        <h1 className="whitespace-nowrap text-2xl sm:text-4xl md:text-5xl font-black tracking-tight font-display text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-100 to-slate-400 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)] mb-3 sm:mb-6 px-2">
           HUMAN HUNTER
         </h1>
 
-        {/* Big Juicy Arcade Play Button */}
-        <button
-          onClick={() => {
-            soundManager.playClick();
-            onStartGame();
-          }}
-          className="group relative w-full max-w-[220px] sm:max-w-[260px] py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl sm:rounded-2xl bg-gradient-to-b from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-sm sm:text-base tracking-wider uppercase font-display flex items-center justify-center gap-2.5 transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-[0_8px_20px_rgba(245,158,11,0.3)] border-t border-amber-200 mb-2.5 sm:mb-3 cursor-pointer"
-        >
-          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-950/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-slate-950 text-slate-950 translate-x-0.5" />
-          </div>
-          <span>PLAY GAME</span>
-        </button>
+        {/* Vertical Stack of Image Buttons */}
+        <div className="flex flex-col items-center gap-2.5 sm:gap-0 w-full max-w-[200px] sm:max-w-[240px]">
+          <button
+            onClick={() => {
+              soundManager.playClick();
+              onStartGame();
+            }}
+            className="group relative w-full transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer"
+            title="Play Game"
+          >
+            <img
+              src="/play-game-btn.webp"
+              alt="Play Game"
+              className="w-full h-auto object-contain pointer-events-none drop-shadow-[0_6px_16px_rgba(0,0,0,0.6)]"
+            />
+          </button>
 
-        {/* Secondary Game Navigation Buttons */}
-        <div className="grid grid-cols-2 gap-2 w-full max-w-[220px] sm:max-w-[260px]">
+          {/* 2. LEVELS */}
           <button
             onClick={() => {
               soundManager.playClick();
               onOpenLevelSelect();
             }}
-            className="py-2 px-2.5 rounded-lg sm:rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 text-[11px] sm:text-xs font-bold tracking-wide flex items-center justify-center gap-1.5 transition-all shadow-md backdrop-blur-md cursor-pointer"
+            className="group relative w-full transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer"
+            title="Select Level"
           >
-            <Grid className="w-3.5 h-3.5 text-amber-400" />
-            <span>LEVELS</span>
+            <img
+              src="/levels-btn.webp"
+              alt="Levels"
+              className="w-full h-auto object-contain pointer-events-none drop-shadow-[0_6px_16px_rgba(0,0,0,0.6)]"
+            />
           </button>
 
+          {/* 3. BUILDER */}
           <button
             onClick={() => {
               soundManager.playClick();
               onOpenLevelEditor();
             }}
-            className="py-2 px-2.5 rounded-lg sm:rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 text-[11px] sm:text-xs font-bold tracking-wide flex items-center justify-center gap-1.5 transition-all shadow-md backdrop-blur-md cursor-pointer"
+            className="group relative w-full transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer"
+            title="Level Builder"
           >
-            <Wrench className="w-3.5 h-3.5 text-sky-400" />
-            <span>BUILDER</span>
+            <img
+              src="/builder-icon.webp"
+              alt="Builder"
+              className="w-full h-auto object-contain pointer-events-none drop-shadow-[0_6px_16px_rgba(0,0,0,0.6)]"
+            />
           </button>
         </div>
       </div>
