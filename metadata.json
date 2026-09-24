@@ -1,0 +1,6 @@
+{
+  "name": "Ricochet Outbreak: Zombie Ricochet Shooter",
+  "description": "A 2D physics puzzle ricochet shooter game where you aim and bounce bullets off walls and obstacles up to 8 times to hunt hidden zombies in packed rooms.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
