@@ -168,31 +168,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }, []);
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden select-none flex flex-col justify-between p-6 sm:p-10 font-sans">
+    <div className="relative w-full min-h-screen select-none flex flex-col justify-between p-3 sm:p-5 md:p-8 font-sans overflow-x-hidden">
       {/* Background Canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
 
       {/* Top Header / Corner Status */}
-      <div className="relative z-10 flex items-center justify-between w-full max-w-6xl mx-auto">
+      <div className="relative z-10 flex items-center justify-between w-full max-w-5xl mx-auto gap-2">
         {/* Star Badge */}
-        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 backdrop-blur-md shadow-lg">
-          <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-          <span className="text-xs font-mono font-bold text-slate-200 tabular-nums">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-800 backdrop-blur-md shadow-lg">
+          <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-amber-400 text-amber-400" />
+          <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-200 tabular-nums">
             {totalStars} / {maxStars} Stars
           </span>
         </div>
 
         {/* Audio Mute & Instructions Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => {
               soundManager.playClick();
               onOpenInstructions();
             }}
-            className="p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-slate-100 transition-colors backdrop-blur-md shadow-lg"
+            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-slate-100 transition-colors backdrop-blur-md shadow-lg cursor-pointer"
             title="How to Play"
           >
-            <HelpCircle className="w-4 h-4" />
+            <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
 
           <button
@@ -200,34 +200,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               soundManager.playClick();
               onToggleMute();
             }}
-            className="p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-slate-100 transition-colors backdrop-blur-md shadow-lg"
+            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-slate-100 transition-colors backdrop-blur-md shadow-lg cursor-pointer"
             title={isMuted ? 'Unmute Sound' : 'Mute Sound'}
           >
-            {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-amber-400" />}
+            {isMuted ? <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />}
           </button>
         </div>
       </div>
 
       {/* Center Game Title Logo & Actions */}
-      <div className="relative z-10 flex flex-col items-center justify-center text-center my-auto max-w-xl mx-auto">
+      <div className="relative z-10 flex flex-col items-center justify-center text-center my-auto py-2 sm:py-4 max-w-md mx-auto w-full">
         {/* Thematic Crosshair Badge */}
-        <div className="relative mb-4">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-500/20 to-red-500/10 border-2 border-amber-500/40 flex items-center justify-center text-amber-400 shadow-[0_0_40px_rgba(245,158,11,0.25)]">
-            <Target className="w-10 h-10 animate-pulse" />
+        <div className="relative mb-2 sm:mb-3">
+          <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-500/20 to-red-500/10 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+            <Target className="w-5 h-5 sm:w-7 sm:h-7 animate-pulse" />
           </div>
-          <div className="absolute -bottom-2 -right-2 px-2 py-0.5 rounded-md bg-red-600 text-[10px] font-black uppercase tracking-wider text-white shadow-md border border-red-400">
+          <div className="absolute -bottom-1.5 -right-1.5 px-1 py-0.5 rounded bg-red-600 text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-white shadow-md border border-red-400">
             8-Bounce
           </div>
         </div>
 
         {/* Game Title */}
-        <h1 className="text-4xl sm:text-6xl font-black tracking-tight font-display text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-slate-400 drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)] mb-2">
-          RICOCHET OUTBREAK
+        <h1 className="whitespace-nowrap text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-tight font-display text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-100 to-slate-400 drop-shadow-[0_4px_16px_rgba(245,158,11,0.2)] mb-3 sm:mb-5 px-2">
+          HUMAN HUNTER
         </h1>
-
-        <p className="text-xs sm:text-sm text-slate-400 max-w-md mb-8 leading-relaxed font-medium">
-          Aim your reflective bullets off walls and obstacles. Hunt zombies hidden behind vertical barricades before your 8 bounces run out!
-        </p>
 
         {/* Big Juicy Arcade Play Button */}
         <button
@@ -235,24 +231,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             soundManager.playClick();
             onStartGame();
           }}
-          className="group relative w-full sm:w-72 py-4 px-8 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-lg tracking-wider uppercase font-display flex items-center justify-center gap-3 transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(245,158,11,0.35)] border-t border-amber-200 mb-4"
+          className="group relative w-full max-w-[220px] sm:max-w-[260px] py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl sm:rounded-2xl bg-gradient-to-b from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-sm sm:text-base tracking-wider uppercase font-display flex items-center justify-center gap-2.5 transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-[0_8px_20px_rgba(245,158,11,0.3)] border-t border-amber-200 mb-2.5 sm:mb-3 cursor-pointer"
         >
-          <div className="w-8 h-8 rounded-full bg-slate-950/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Play className="w-5 h-5 fill-slate-950 text-slate-950 translate-x-0.5" />
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-950/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-slate-950 text-slate-950 translate-x-0.5" />
           </div>
           <span>PLAY GAME</span>
         </button>
 
         {/* Secondary Game Navigation Buttons */}
-        <div className="grid grid-cols-2 gap-3 w-full sm:w-72">
+        <div className="grid grid-cols-2 gap-2 w-full max-w-[220px] sm:max-w-[260px]">
           <button
             onClick={() => {
               soundManager.playClick();
               onOpenLevelSelect();
             }}
-            className="py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 text-xs font-bold tracking-wide flex items-center justify-center gap-2 transition-all shadow-md backdrop-blur-md"
+            className="py-2 px-2.5 rounded-lg sm:rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 text-[11px] sm:text-xs font-bold tracking-wide flex items-center justify-center gap-1.5 transition-all shadow-md backdrop-blur-md cursor-pointer"
           >
-            <Grid className="w-4 h-4 text-amber-400" />
+            <Grid className="w-3.5 h-3.5 text-amber-400" />
             <span>LEVELS</span>
           </button>
 
@@ -261,9 +257,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               soundManager.playClick();
               onOpenLevelEditor();
             }}
-            className="py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 text-xs font-bold tracking-wide flex items-center justify-center gap-2 transition-all shadow-md backdrop-blur-md"
+            className="py-2 px-2.5 rounded-lg sm:rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 text-[11px] sm:text-xs font-bold tracking-wide flex items-center justify-center gap-1.5 transition-all shadow-md backdrop-blur-md cursor-pointer"
           >
-            <Wrench className="w-4 h-4 text-sky-400" />
+            <Wrench className="w-3.5 h-3.5 text-sky-400" />
             <span>BUILDER</span>
           </button>
         </div>

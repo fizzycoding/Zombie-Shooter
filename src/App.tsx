@@ -181,7 +181,7 @@ export default function App() {
   // If on HOME screen, show dedicated game title screen
   if (screen === 'HOME') {
     return (
-      <div className="w-screen h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans">
+      <div className="w-full min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden overflow-y-auto font-sans">
         <HomeScreen
           totalStars={totalStarsCount}
           maxStars={LEVELS.length * 3}
