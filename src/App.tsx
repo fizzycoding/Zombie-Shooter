@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Pause } from 'lucide-react';
 import { GameCanvas } from './components/GameCanvas';
 import { HomeScreen } from './components/HomeScreen';
 import { InGameMenuModal } from './components/InGameMenuModal';
@@ -181,7 +182,7 @@ export default function App() {
   // If on HOME screen, show dedicated game title screen
   if (screen === 'HOME') {
     return (
-      <div className="w-full min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden overflow-y-auto font-sans">
+      <div className="w-full min-h-screen bg-slate-900 text-slate-100 overflow-x-hidden overflow-y-auto font-sans">
         <HomeScreen
           totalStars={totalStarsCount}
           maxStars={LEVELS.length * 3}
@@ -242,8 +243,11 @@ export default function App() {
 
   // GAMEPLAY SCREEN - Entire packed room fills the screen!
   return (
-    <div className="relative w-screen h-screen bg-slate-950 text-slate-100 overflow-hidden flex items-center justify-center select-none font-sans">
-      {/* 1. TOP LEFT: | | ICON BUTTON TO OPEN MENU (Inside room walls, grows and shrinks dynamically with game) */}
+    <div className="relative w-screen h-screen bg-slate-900 text-slate-100 overflow-hidden flex items-center justify-center select-none font-sans">
+      {/* Surrounding Mid-Dark Slate Ambient Background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 pointer-events-none" />
+
+      {/* 1. TOP LEFT: | | ICON BUTTON TO OPEN MENU */}
       <div
         className="absolute z-30 flex items-center transition-transform duration-75"
         style={{
@@ -258,20 +262,16 @@ export default function App() {
             soundManager.playClick();
             setGameStatus('PAUSED');
           }}
-          className="w-11 h-11 rounded-2xl bg-slate-900/85 hover:bg-slate-800/95 active:scale-95 border border-slate-700/80 shadow-2xl backdrop-blur-md flex items-center justify-center transition-all group cursor-pointer"
+          className="w-11 h-11 rounded-2xl bg-slate-800/90 hover:bg-slate-700 active:scale-95 border border-slate-700/80 shadow-xl backdrop-blur-md flex items-center justify-center transition-all group cursor-pointer"
           title="Open Menu [Esc]"
         >
-          {/* | | icon */}
-          <div className="flex items-center gap-1 text-amber-400 group-hover:text-amber-300 font-black">
-            <div className="w-1.5 h-4.5 bg-amber-400 group-hover:bg-amber-300 rounded-full" />
-            <div className="w-1.5 h-4.5 bg-amber-400 group-hover:bg-amber-300 rounded-full" />
-          </div>
+          <Pause className="w-5 h-5 text-amber-400 fill-amber-400 group-hover:text-amber-300 transition-colors" />
         </button>
       </div>
 
-      {/* 2. TOP RIGHT: BULLETS / AMMO DISPLAY (Inside room walls, grows and shrinks dynamically with game) */}
+      {/* 2. TOP RIGHT: BULLETS / AMMO DISPLAY */}
       <div
-        className="absolute z-30 flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-slate-900/85 border border-slate-700/80 shadow-2xl backdrop-blur-md transition-transform duration-75"
+        className="absolute z-30 flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-slate-800/90 border border-slate-700/80 shadow-xl backdrop-blur-md transition-transform duration-75"
         style={{
           top: `${34 * hudScale.scaleY}px`,
           right: `${34 * hudScale.scaleX}px`,

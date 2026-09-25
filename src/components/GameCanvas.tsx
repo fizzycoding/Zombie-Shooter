@@ -36,6 +36,32 @@ interface GameCanvasProps {
   restartKey?: number;
 }
 
+// Helper for smooth rounded rectangles across all browsers
+function drawRoundedBox(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, w, h, r);
+  } else {
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+}
+
 export const GameCanvas: React.FC<GameCanvasProps> = ({
   level,
   ammoLeft,
@@ -711,30 +737,60 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         ctx.translate(shakeX, shakeY);
       }
 
-      // 1. Background Chamber Flooring
-      ctx.fillStyle = '#0f172a';
+      // 1. Tactical Combat Arena Flooring (Mid-Dark Slate Theme)
+      const floorGrad = ctx.createRadialGradient(
+        ROOM_WIDTH / 2, ROOM_HEIGHT / 2, 80,
+        ROOM_WIDTH / 2, ROOM_HEIGHT / 2, ROOM_WIDTH * 0.75
+      );
+      floorGrad.addColorStop(0, '#1e293b');
+      floorGrad.addColorStop(0.65, '#0f172a');
+      floorGrad.addColorStop(1, '#090d16');
+      ctx.fillStyle = floorGrad;
       ctx.fillRect(0, 0, ROOM_WIDTH, ROOM_HEIGHT);
 
-      // Subtle background grid
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      // Tactical Grid Lines (48x48 tile grid)
+      const tileSize = 48;
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.14)';
       ctx.lineWidth = 1;
-      for (let x = 0; x < ROOM_WIDTH; x += 40) {
+      for (let x = 0; x <= ROOM_WIDTH; x += tileSize) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, ROOM_HEIGHT);
         ctx.stroke();
       }
-      for (let y = 0; y < ROOM_HEIGHT; y += 40) {
+      for (let y = 0; y <= ROOM_HEIGHT; y += tileSize) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(ROOM_WIDTH, y);
         ctx.stroke();
       }
 
+      // Intersection Crosshairs
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.22)';
+      ctx.lineWidth = 1;
+      const crossSize = 3;
+      for (let x = tileSize; x < ROOM_WIDTH; x += tileSize * 2) {
+        for (let y = tileSize; y < ROOM_HEIGHT; y += tileSize * 2) {
+          ctx.beginPath();
+          ctx.moveTo(x - crossSize, y);
+          ctx.lineTo(x + crossSize, y);
+          ctx.moveTo(x, y - crossSize);
+          ctx.lineTo(x, y + crossSize);
+          ctx.stroke();
+        }
+      }
+
+      // Inner Perimeter Tactical Border Line
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([8, 8]);
+      ctx.strokeRect(12, 12, ROOM_WIDTH - 24, ROOM_HEIGHT - 24);
+      ctx.setLineDash([]); // reset line dash
+
       // 2. Persistent Blood/Slime Splats on Floor/Walls
       for (const splat of splatsRef.current) {
         ctx.fillStyle = splat.color;
-        ctx.globalAlpha = 0.65;
+        ctx.globalAlpha = 0.75;
         ctx.beginPath();
         ctx.moveTo(splat.x + splat.points[0].x, splat.y + splat.points[0].y);
         for (let i = 1; i < splat.points.length; i++) {
@@ -755,14 +811,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
         // Red cylinder barrel
         const grad = ctx.createLinearGradient(bx, by, bx + bw, by);
-        grad.addColorStop(0, '#b91c1c');
+        grad.addColorStop(0, '#dc2626');
         grad.addColorStop(0.5, '#ef4444');
-        grad.addColorStop(1, '#991b1b');
+        grad.addColorStop(1, '#b91c1c');
         ctx.fillStyle = grad;
         ctx.fillRect(bx, by, bw, bh);
 
         // Barrel rims & ribs
-        ctx.fillStyle = '#1e293b';
+        ctx.fillStyle = '#0f172a';
         ctx.fillRect(bx, by + 4, bw, 4);
         ctx.fillRect(bx, by + bh / 2 - 2, bw, 4);
         ctx.fillRect(bx, by + bh - 8, bw, 4);
@@ -842,12 +898,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         const isMetal = wall.type === 'metal';
         const wGrad = ctx.createLinearGradient(wall.x, wall.y, wall.x + wall.width, wall.y + wall.height);
         if (isMetal) {
-          wGrad.addColorStop(0, '#334155');
-          wGrad.addColorStop(0.5, '#475569');
+          wGrad.addColorStop(0, '#475569');
+          wGrad.addColorStop(0.5, '#334155');
           wGrad.addColorStop(1, '#1e293b');
         } else {
-          wGrad.addColorStop(0, '#1e293b');
-          wGrad.addColorStop(0.5, '#334155');
+          wGrad.addColorStop(0, '#334155');
+          wGrad.addColorStop(0.5, '#1e293b');
           wGrad.addColorStop(1, '#0f172a');
         }
         ctx.fillStyle = wGrad;
@@ -881,10 +937,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       }
 
-      // 5. Render Outer Packed Room Bounding Walls
+      // 5. Render Outer Bounding Walls (Slate Concrete Frame)
       const wallGrad = ctx.createLinearGradient(0, 0, ROOM_WIDTH, ROOM_HEIGHT);
-      wallGrad.addColorStop(0, '#1e293b');
-      wallGrad.addColorStop(1, '#0f172a');
+      wallGrad.addColorStop(0, '#334155');
+      wallGrad.addColorStop(1, '#1e293b');
       ctx.fillStyle = wallGrad;
 
       // Top wall
@@ -905,9 +961,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         ROOM_WIDTH - WALL_THICKNESS * 2,
         ROOM_HEIGHT - WALL_THICKNESS * 2
       );
-
-      // 6. Render Zombies
-      const now = performance.now() * 0.003;
+      // 6. Render Enemies (Clean 2D Minimalist Characters with Rounded Rectangle Face)
       for (const z of zombiesRef.current) {
         if (z.state === 'dead') continue;
 
@@ -915,75 +969,171 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         const zy = z.y;
         const zw = z.width;
         const zh = z.height;
-
-        // Idle breathing / swaying offset
-        const swayY = Math.sin(now + zx) * 2;
-        const swayX = Math.cos(now * 0.8 + zy) * 1.2;
+        const facingLeft = z.facing === 'left';
 
         ctx.save();
-        ctx.translate(zx + zw / 2 + swayX, zy + zh + swayY);
+        ctx.translate(zx + zw / 2, zy + zh);
 
-        // Legs
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(-10, -22, 7, 22);
-        ctx.fillRect(3, -22, 7, 22);
-
-        // Torso / Torn Clothes
-        ctx.fillStyle = z.type === 'armored' ? '#475569' : '#047857';
-        ctx.fillRect(-14, -50, 28, 28);
-
-        // Zombie Head
-        ctx.fillStyle = '#10b981'; // Sickly green
+        // Ground Contact Shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
         ctx.beginPath();
-        ctx.arc(0, -58, 14, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, zw * 0.5, 5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Eyes (glowing yellow/red)
-        const eyeOffset = z.facing === 'left' ? -4 : 4;
-        ctx.fillStyle = '#fef08a';
-        ctx.beginPath();
-        ctx.arc(eyeOffset - 3, -60, 2.5, 0, Math.PI * 2);
-        ctx.arc(eyeOffset + 3, -60, 2.5, 0, Math.PI * 2);
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+
+        // 1. LEGS (Dark Slate Pants)
+        ctx.fillStyle = '#334155';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+
+        drawRoundedBox(ctx, -10, -22, 8, 22, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        drawRoundedBox(ctx, 2, -22, 8, 22, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        // Shoes
+        ctx.fillStyle = '#0f172a';
+        drawRoundedBox(ctx, -12, -4, 10, 5, 2);
+        ctx.fill();
+        drawRoundedBox(ctx, 2, -4, 10, 5, 2);
         ctx.fill();
 
-        ctx.fillStyle = '#dc2626';
-        ctx.beginPath();
-        ctx.arc(eyeOffset - 3, -60, 1, 0, Math.PI * 2);
-        ctx.arc(eyeOffset + 3, -60, 1, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Armored Helmet
+        // Knee Armor (Armored Zombie)
         if (z.type === 'armored') {
           ctx.fillStyle = '#64748b';
-          ctx.beginPath();
-          ctx.arc(0, -62, 15, Math.PI, Math.PI * 2);
+          drawRoundedBox(ctx, -11, -16, 9, 8, 2);
           ctx.fill();
-          ctx.fillRect(-15, -62, 30, 4);
+          ctx.stroke();
+          drawRoundedBox(ctx, 3, -16, 9, 8, 2);
+          ctx.fill();
+          ctx.stroke();
         }
 
-        // Riot Shield
+        // 2. BODY / TORSO (Bright Red or Purple Torn Shirt)
+        ctx.fillStyle = z.type === 'armored' ? '#475569' : '#ef4444';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+        drawRoundedBox(ctx, -14, -48, 28, 26, 5);
+        ctx.fill();
+        ctx.stroke();
+
+        // Chest Armor Plate (Armored Zombie)
+        if (z.type === 'armored') {
+          ctx.fillStyle = '#94a3b8';
+          drawRoundedBox(ctx, -10, -45, 20, 20, 3);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#f59e0b';
+          ctx.fillRect(-4, -38, 8, 6);
+        } else {
+          // Torn T-shirt shreds / emblem
+          ctx.fillStyle = '#b91c1c';
+          ctx.fillRect(-6, -38, 12, 4);
+        }
+
+        // 3. OUTSTRETCHED ARMS (Zombie Lime Green Skin Tone)
+        const armDir = facingLeft ? -1 : 1;
+        ctx.fillStyle = '#4ade80'; // Bright lime green zombie skin
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+
+        drawRoundedBox(ctx, armDir === 1 ? 4 : -24, -42, 20, 7, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        // Cute Zombie Claws
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(armDir === 1 ? 22 : -26, -43, 3, 3);
+        ctx.fillRect(armDir === 1 ? 22 : -39, -39, 3, 3);
+
+        // 4. FACE & HEAD (Rounded Rectangle - NOT A CIRCLE, NOT BLACK!)
+        ctx.fillStyle = '#4ade80'; // Bright lime green skin tone face
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+        drawRoundedBox(ctx, -13, -70, 26, 22, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        // Armored Helmet (Armored Zombie)
+        if (z.type === 'armored') {
+          ctx.fillStyle = '#334155';
+          drawRoundedBox(ctx, -14, -73, 28, 8, 3);
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // Heavy Riot Shield (Shielded Zombie)
         if (z.type === 'shielded') {
-          const shieldX = z.shieldDirection === 'left' ? -18 : 6;
-          ctx.fillStyle = '#3b82f6';
-          ctx.fillRect(shieldX, -56, 12, 44);
-          ctx.strokeStyle = '#93c5fd';
+          const shieldX = z.shieldDirection === 'left' ? -24 : 10;
+          ctx.fillStyle = '#1e293b';
+          ctx.strokeStyle = '#64748b';
           ctx.lineWidth = 2;
-          ctx.strokeRect(shieldX, -56, 12, 44);
-          // Shield cross
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(shieldX + 4, -42, 4, 16);
-          ctx.fillRect(shieldX + 1, -36, 10, 4);
+          drawRoundedBox(ctx, shieldX, -62, 14, 52, 4);
+          ctx.fill();
+          ctx.stroke();
+
+          // Shield hazard stripes
+          ctx.fillStyle = '#f59e0b';
+          ctx.fillRect(shieldX + 2, -45, 10, 4);
+          ctx.fillRect(shieldX + 2, -35, 10, 4);
+          ctx.fillRect(shieldX + 2, -25, 10, 4);
         }
 
-        // Outstretched Zombie Arms
-        ctx.fillStyle = '#10b981';
-        const armDir = z.facing === 'left' ? -1 : 1;
-        ctx.fillRect(armDir * 6, -46, armDir * 18, 6);
+        // 5. CUTE EXPRESSIVE ZOMBIE EYES & MOUTH
+        const eyeX = facingLeft ? -4 : 4;
+        
+        // Eye 1 (Left/Front Eye)
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(eyeX - 4, -60, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Pupil 1
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(eyeX - 4, -60, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Eye 2 (Right/Back Eye)
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(eyeX + 4, -60, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Pupil 2
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(eyeX + 4, -60, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Mouth (Funny zombie smile with 2 white teeth!)
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(eyeX - 5, -52);
+        ctx.lineTo(eyeX + 5, -52);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(eyeX - 3, -52, 2, 3);
+        ctx.fillRect(eyeX + 1, -52, 2, 3);
 
         ctx.restore();
       }
 
-      // 7. Render Gunman (Tactical Hunter)
+      // 7. Render Gunman (Clean 2D Hero with Warm Skin Tone & Rounded Box Head)
       const gx = level.gunman.x;
       const gy = level.gunman.y;
       const gunAngle = gunAngleRef.current;
@@ -991,48 +1141,165 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       ctx.save();
       ctx.translate(gx, gy);
+
+      // Hero Shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 22, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+
       if (facingLeft) {
         ctx.scale(-1, 1);
       }
 
-      // Legs / tactical pants
-      ctx.fillStyle = '#1e293b';
-      ctx.fillRect(-12, -18, 9, 18);
-      ctx.fillRect(3, -18, 9, 18);
+      // 1. LEGS (Cool Blue Tactical Pants & Shoes)
+      ctx.fillStyle = '#1e40af'; // Bright dark blue pants
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
 
-      // Tactical Boots
+      drawRoundedBox(ctx, -11, -22, 8, 22, 3);
+      ctx.fill();
+      ctx.stroke();
+
+      drawRoundedBox(ctx, 3, -22, 8, 22, 3);
+      ctx.fill();
+      ctx.stroke();
+
+      // Boots/Shoes
       ctx.fillStyle = '#0f172a';
-      ctx.fillRect(-14, -4, 12, 4);
-      ctx.fillRect(2, -4, 12, 4);
-
-      // Torso / Tactical Armor Vest
-      ctx.fillStyle = '#334155';
-      ctx.fillRect(-14, -46, 28, 28);
-      ctx.fillStyle = '#f59e0b';
-      ctx.fillRect(-10, -42, 20, 6); // Golden harness strap
-
-      // Gunman Head & Helmet
-      ctx.fillStyle = '#475569';
-      ctx.beginPath();
-      ctx.arc(0, -56, 13, 0, Math.PI * 2);
+      drawRoundedBox(ctx, -13, -4, 11, 5, 2);
+      ctx.fill();
+      drawRoundedBox(ctx, 3, -4, 11, 5, 2);
       ctx.fill();
 
-      // Tactical Visor / HUD Eyepiece (Glowing Cyan)
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(1, -58, 12, 5);
+      // 2. TORSO / BODY (Bright Cyan / Blue Tactical Shirt)
+      ctx.fillStyle = '#0284c7';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      drawRoundedBox(ctx, -14, -48, 28, 26, 5);
+      ctx.fill();
+      ctx.stroke();
 
-      // Gun Pivot Arm & Laser Gun
-      ctx.translate(2, -36);
+      // Gold Belt & Harness Badge
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(-12, -30, 24, 4);
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(-3, -31, 6, 6);
+
+      // Star Emblem on Chest
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(0, -40, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 3. FACE & HEAD (Rounded Box Face - NOT A CIRCLE, NOT BLACK! Bright Warm Skin Tone)
+      ctx.fillStyle = '#fed7aa'; // Warm light peach skin tone
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      drawRoundedBox(ctx, -13, -70, 26, 22, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      // Hero Red Cap with Visor Brim
+      ctx.fillStyle = '#dc2626'; // Vibrant red hero cap
+      drawRoundedBox(ctx, -14, -73, 28, 9, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Cap Visor Bill
+      ctx.fillStyle = '#b91c1c';
+      drawRoundedBox(ctx, 0, -67, 15, 4, 1);
+      ctx.fill();
+      ctx.stroke();
+
+      // 4. CUTE EXPRESSIVE HERO EYES & MOUTH
+      // Left Eye
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(2, -60, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Pupil (staring forward)
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(3, -60, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // White Glint
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(3.8, -61, 0.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Right Eye
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(9, -60, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Pupil 2
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(10, -60, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // White Glint 2
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(10.8, -61, 0.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Determined Smile Mouth
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(6, -53, 3, 0.1, Math.PI - 0.1);
+      ctx.stroke();
+
+      // 5. HERO ARMS & RIFLE (Skin tone arms holding sleek rifle)
+      ctx.translate(2, -37);
       const localGunAngle = facingLeft ? Math.atan2(Math.sin(gunAngle), -Math.cos(gunAngle)) : gunAngle;
       ctx.rotate(localGunAngle);
 
-      // Pistol / Sniper Body
+      // Gun Body (Sleek Dark Rifle)
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      drawRoundedBox(ctx, -6, -5, 42, 10, 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Metal Barrel Guard
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(8, -7, 24, 4);
+
+      // Glowing Laser Sight Line
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(12, -4, 18, 2);
+
+      // Scope
       ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, -4, 34, 8);
-      ctx.fillStyle = '#f59e0b';
-      ctx.fillRect(8, -6, 16, 3); // Scope
-      ctx.fillStyle = '#64748b';
-      ctx.fillRect(-4, 0, 8, 12); // Handle
+      drawRoundedBox(ctx, 10, -10, 14, 5, 1);
+      ctx.fill();
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(12, -9, 10, 3);
+
+      // Skin Tone Hand holding gun
+      ctx.fillStyle = '#fed7aa'; // Peach skin hand
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.5;
+      drawRoundedBox(ctx, 2, -2, 8, 8, 2);
+      ctx.fill();
+      ctx.stroke();
 
       ctx.restore();
 
